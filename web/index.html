@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>建材市场价格情报站</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='7' height='9' rx='1.5' fill='%23d64545'/%3E%3Cline x1='7.5' y1='5' x2='7.5' y2='27' stroke='%23d64545' stroke-width='2.4'/%3E%3Crect x='21' y='13' width='7' height='9' rx='1.5' fill='%231f9d61'/%3E%3Cline x1='24.5' y1='6' x2='24.5' y2='27' stroke='%231f9d61' stroke-width='2.4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css?v=20261015a">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true">
+        <line x1="9" y1="5" x2="9" y2="9" stroke="#d64545" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="9" y1="17" x2="9" y2="27" stroke="#d64545" stroke-width="2.4" stroke-linecap="round"/>
+        <rect x="5.5" y="9" width="7" height="8" rx="1.5" fill="#d64545"/>
+        <line x1="23" y1="6" x2="23" y2="13" stroke="#1f9d61" stroke-width="2.4" stroke-linecap="round"/>
+        <line x1="23" y1="22" x2="23" y2="27" stroke="#1f9d61" stroke-width="2.4" stroke-linecap="round"/>
+        <rect x="19.5" y="13" width="7" height="9" rx="1.5" fill="#1f9d61"/>
+      </svg>
+      <div class="brand-text">
+        <h1>建材市场价格情报站</h1>
+        <p>合肥 · 南京 · 上海 · 杭州 建筑材料市场信息价</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="sourceBadge" class="source-badge">示例数据</span>
+      <span id="updateBadge" class="update-badge">更新中…</span>
+      <button id="refreshBtn" class="btn ghost" type="button" title="立即检查并更新到最新交易日">刷新数据</button>
+      <button id="exportBtn" class="btn ghost" type="button" title="导出当前行情数据为 CSV">导出CSV</button>
+      <button id="goImportBtn" class="btn primary" type="button">数据导入</button>
+    </div>
+  </header>
+
+  <nav class="tab-bar" aria-label="主导航">
+    <button class="tab active" data-view="market" type="button">行情走势</button>
+    <button class="tab" data-view="compare" type="button">城市对比</button>
+    <button class="tab" data-view="import" type="button">数据导入</button>
+  </nav>
+
+  <main id="app" class="app-main">
+    <section id="view-market" class="view active">
+      <div class="market-layout">
+        <aside class="panel controls-panel">
+          <div class="panel-title">类别</div>
+          <div id="categorySeg" class="segmented"></div>
+          <div class="panel-title">材料</div>
+          <input id="materialSearch" class="search-input" type="search" placeholder="搜索材料..." autocomplete="off">
+          <div id="materialList" class="material-list"></div>
+          <div class="panel-title ma-title">均线</div>
+          <div id="maToggles" class="ma-toggles">
+            <label><input type="checkbox" data-ma="ma5" checked> MA5</label>
+            <label><input type="checkbox" data-ma="ma10" checked> MA10</label>
+            <label><input type="checkbox" data-ma="ma20" checked> MA20</label>
+          </div>
+        </aside>
+
+        <div class="market-main">
+          <div class="panel quick-controls">
+            <div class="quick-group">
+              <span class="quick-label">城市</span>
+              <div id="citySeg" class="segmented"></div>
+            </div>
+            <div class="quick-group">
+              <span class="quick-label">口径</span>
+              <div id="priceModeSeg" class="segmented"></div>
+            </div>
+            <div class="quick-group">
+              <span class="quick-label">周期</span>
+              <div id="periodSeg" class="segmented"></div>
+            </div>
+            <div class="quick-group">
+              <span class="quick-label">范围</span>
+              <select id="rangeSelect" class="range-select">
+                <option value="1">近1月</option>
+                <option value="3">近3月</option>
+                <option value="6" selected>近6月</option>
+                <option value="12">近1年</option>
+                <option value="0">全部</option>
+              </select>
+            </div>
+          </div>
+          <div id="quoteStrip" class="quote-strip"></div>
+          <div class="panel chart-panel">
+            <div class="chart-head">
+              <div class="chart-title-box">
+                <h2 id="chartTitle">螺纹钢</h2>
+                <p id="chartSub" class="chart-sub"></p>
+              </div>
+              <div id="maLegend" class="ma-legend"></div>
+            </div>
+            <div id="specChips" class="spec-chips"></div>
+            <div id="candleChart" class="chart-wrap"></div>
+          </div>
+          <div id="priceTablePanel" class="panel table-panel">
+            <div class="panel-title">每日信息价 · <span id="tableCityLabel">合肥</span></div>
+            <div class="table-scroll">
+              <table id="priceTable" class="data-table"></table>
+            </div>
+            <div id="priceCards" class="price-cards"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-compare" class="view">
+      <div class="panel compare-toolbar">
+        <div class="toolbar-group">
+          <label for="compareMaterialSelect">材料</label>
+          <select id="compareMaterialSelect"></select>
+        </div>
+        <div class="toolbar-group">
+          <label for="comparePeriodSelect">周期</label>
+          <select id="comparePeriodSelect">
+            <option value="daily">日K</option>
+            <option value="weekly">周K</option>
+            <option value="monthly">月K</option>
+          </select>
+        </div>
+        <div class="toolbar-group">
+          <label for="compareRangeSelect">时间范围</label>
+          <select id="compareRangeSelect">
+            <option value="1">近1月</option>
+            <option value="3">近3月</option>
+            <option value="6" selected>近6月</option>
+            <option value="12">近1年</option>
+            <option value="0">全部</option>
+          </select>
+        </div>
+        <div class="toolbar-group">
+          <label for="comparePriceModeSelect">价格口径</label>
+          <select id="comparePriceModeSelect">
+            <option value="tax">含税价</option>
+            <option value="noTax">不含税价</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel chart-panel">
+        <div class="chart-head">
+          <div class="chart-title-box">
+            <h2>城市涨跌对比</h2>
+            <p id="compareSub" class="chart-sub"></p>
+          </div>
+          <div id="compareLegend" class="ma-legend"></div>
+        </div>
+        <div id="compareChart" class="chart-wrap tall"></div>
+      </div>
+
+      <div class="panel table-panel">
+        <div class="panel-title">城市行情对比</div>
+        <div class="table-scroll">
+          <table id="compareTable" class="data-table"></table>
+        </div>
+      </div>
+
+      <div id="miniGrid" class="mini-grid"></div>
+    </section>
+
+    <section id="view-import" class="view">
+      <div class="panel">
+        <div class="panel-title">快速读取市场信息价</div>
+        <p class="import-hint">
+          从造价信息网站、价格发布页复制文本，或上传 CSV / TXT 文件后点击“解析预览”。支持“日期 城市 材料 价格”以及“日期,城市,材料,价格”等常见格式。
+        </p>
+        <textarea id="importText" class="import-textarea" placeholder="示例：
+2026-08-01 合肥 螺纹钢 HRB400E Φ12-14 3620元/吨
+2026-08-01 南京 螺纹钢 HRB400E Φ12-14 3700元/吨
+2026-08-01 上海 螺纹钢 HRB400E Φ12-14 3850元/吨
+2026-08-01 杭州 螺纹钢 HRB400E Φ12-14 3840元/吨
+
+或 CSV 格式：
+日期,城市,材料,价格
+2026-08-01,合肥,水泥,385
+2026-08-02,合肥,水泥,388"></textarea>
+        <div class="import-actions">
+          <input id="fileInput" type="file" accept=".csv,.txt,.tsv" hidden>
+          <button id="fileBtn" class="btn ghost" type="button">选择文件</button>
+          <button id="parseBtn" class="btn primary" type="button">解析预览</button>
+          <button id="clearImportBtn" class="btn ghost" type="button">清空</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">每日自动更新</div>
+        <p class="import-hint">
+          页面每次打开、每 30 分钟和跨天时都会自动检查，并把行情补到最新交易日。你也可以填写自己的数据接口地址（JSON 或 CSV，含日期、城市、材料、含税价/不含税价、来源等字段），页面会按此地址每日自动拉取；钢铁类材料优先采用我的钢铁网，有色材料采用上海有色网，其他材料采用广材网。
+        </p>
+        <div class="update-row">
+          <input id="dataUrlInput" class="search-input" type="url" placeholder="https://你的数据接口/price.json（可留空）">
+          <button id="saveDataUrlBtn" class="btn primary" type="button">保存并更新</button>
+          <button id="clearDataUrlBtn" class="btn ghost" type="button">清除</button>
+        </div>
+        <div id="updateStatus" class="update-status"></div>
+        <p class="mode-tip">广材网等网站需要登录授权，浏览器直接抓取会被跨域限制拦截；推荐由后端每日抓取后提供 JSON/CSV 地址（参考项目里的 server 目录）。未配置外部数据源时，页面会用内置行情自动延续到最新交易日，保证每天打开都是最新的。</p>
+      </div>
+
+      <div id="importPreview" class="import-preview hidden"></div>
+
+      <div class="panel">
+        <div class="panel-title">支持格式</div>
+        <div class="format-guide">
+          <div class="guide-col">
+            <h3>带表头的 CSV / TSV</h3>
+            <pre>日期,城市,材料,规格,单位,税率,含税价,不含税价,来源
+2026-08-01,合肥,螺纹钢,HRB400E Φ12-14,元/吨,13%,3620,3203.54,广材网
+2026-08-01,南京,螺纹钢,HRB400E Φ12-14,元/吨,13%,3710,3283.19,广材网</pre>
+            <p>列名可包含：日期、城市、材料、规格、单位、税率、含税价、不含税价、来源/渠道；只填其中一种价格会自动换算。同一材料同一天有多条记录时按渠道优先级取数：我的钢铁网 / 上海有色网 &gt; 广材网 &gt; 造价信息网 &gt; 手动导入。</p>
+          </div>
+          <div class="guide-col">
+            <h3>网页复制的纯文本</h3>
+            <pre>8月1日 合肥 螺纹钢 3620元/吨
+2026-08-01 上海 水泥 P.O42.5 445元/吨</pre>
+            <p>自动识别日期、城市、材料名称与价格；未标注城市时按当前选中城市处理。</p>
+          </div>
+          <div class="guide-col">
+            <h3>其他说明</h3>
+            <ul>
+              <li>应用导入数据后会替换当前行情数据，可用“恢复示例数据”还原。</li>
+              <li>只提供单日价格时，K 线会以该价格绘制。</li>
+              <li>当前版本支持合肥、南京、上海、杭州四城。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="data.js?v=20261015a"></script>
+  <script src="app.js?v=20261015a"></script>
+</body>
+</html>

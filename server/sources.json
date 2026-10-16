@@ -1,0 +1,52 @@
+{
+  "output": "web/data/latest.json",
+  "sources": [
+    {
+      "name": "我的钢铁网-四城螺纹钢公开报价",
+      "type": "mysteel-public",
+      "enabled": true,
+      "note": "从我的钢铁网四城公开页面抓取螺纹钢 HRB400E Φ20 报价。",
+      "cities": {
+        "合肥": "https://hefei.mysteel.com/",
+        "南京": "https://nanjing.mysteel.com/",
+        "上海": "https://shanghai.mysteel.com/",
+        "杭州": "https://hangzhou.mysteel.com/"
+      },
+      "material": "螺纹钢",
+      "spec": "HRB400E Φ20",
+      "channel": "我的钢铁网"
+    },
+    {
+      "name": "广材网-合肥主要材料",
+      "type": "guangcai",
+      "enabled": false,
+      "url": "https://www.gldjc.com/",
+      "city": "合肥",
+      "channel": "广材网",
+      "cookieEnv": "GUANGCAI_COOKIE",
+      "note": "广材网需要登录授权，请把登录后的 Cookie 放到环境变量 GUANGCAI_COOKIE；页面结构变化时需要调整解析规则。"
+    },
+    {
+      "name": "安装材料+地材每日数据（可替换为广材网导出）",
+      "type": "csv",
+      "enabled": true,
+      "path": "./data/price.csv",
+      "channel": "广材网"
+    },
+    {
+      "name": "广材网导出数据（把导出文件放到 server/data/guangcai-export.csv 即自动启用）",
+      "type": "csv",
+      "enabled": false,
+      "autoIfExists": true,
+      "path": "./data/guangcai-export.csv",
+      "channel": "广材网"
+    },
+    {
+      "name": "远程JSON接口",
+      "type": "json",
+      "enabled": false,
+      "url": "https://example.com/materials.json",
+      "channel": "造价信息网"
+    }
+  ]
+}
