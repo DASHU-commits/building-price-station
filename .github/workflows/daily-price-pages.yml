@@ -1,6 +1,9 @@
 name: 每日更新建材价格并发布到 GitHub Pages
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     # 每天 07:00（北京时间）= 前一天 23:00 UTC
     - cron: '0 23 * * *'
