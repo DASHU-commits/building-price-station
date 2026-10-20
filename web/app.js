@@ -10,7 +10,7 @@
   const UP = '#d64545';
   const DOWN = '#1f9d61';
   const PERIOD_NAMES = { daily: '日K', weekly: '周K', monthly: '月K' };
-  const RANGE_NAMES = { 1: '近1月', 3: '近3月', 6: '近6月', 12: '近1年', 0: '全部' };
+  const RANGE_NAMES = { 1: '近1月', 3: '近3月', 6: '近6月', 12: '近1年', 36: '近3年', 0: '全部' };
   const STORAGE_KEY = 'priceTool.data.v7';
   const DATA_VERSION = '20261015a';
   const DATA_URL_KEY = 'priceTool.dataUrl';
@@ -65,12 +65,12 @@
     city: '合肥',
     materialId: 'rebar',
     period: 'daily',
-    rangeMonths: 6,
+    rangeMonths: 36,
     mas: { ma5: true, ma10: true, ma20: true },
     priceMode: 'tax', // tax | noTax
     compareMaterialId: 'rebar',
     comparePeriod: 'daily',
-    compareRangeMonths: 6,
+    compareRangeMonths: 36,
     comparePriceMode: 'tax',
     materialSearch: ''
     ,categoryFilter: 'all'
