@@ -1770,8 +1770,11 @@
 
     async function wsFetchText(url) {
       const attempts = [
+        'https://api.cors.lol/?url=' + encodeURIComponent(url),
         'https://r.jina.ai/' + url,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+        'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+        'https://corsproxy.io/?url=' + encodeURIComponent(url)
       ];
       let lastErr = null;
       for (const p of attempts) {
@@ -1844,16 +1847,15 @@
       $('#webSearchGo').disabled = false;
       const notes = [];
       const buckets = [];
-      for (const s of settled) {
-        const src = s.status === 'fulfilled' ? s.value.src : null;
+      settled.forEach((s, idx) => {
+        const src = WS_SOURCES[idx];
         if (s.status === 'fulfilled' && s.value.items.length) {
           buckets.push(s.value.items);
           notes.push(esc(src.name) + ' ' + s.value.items.length + ' 条');
         } else {
-          const s2 = src || WS_SOURCES.find(x => x.name === '淘宝');
-          notes.push(esc(s2.name) + ' 抓取失败（可能需登录或限流） · <a href="' + esc(s2.url(kw)) + '" target="_blank" rel="noopener">直达' + esc(s2.name) + '搜索</a>');
+          notes.push(esc(src.name) + ' 抓取失败（可能需登录/限流/网络拦截） · <a href="' + esc(src.url(kw)) + '" target="_blank" rel="noopener">直达' + esc(src.name) + '搜索</a>');
         }
-      }
+      });
       const merged = [];
       for (let i = 0; merged.length < 20; i++) {
         let pushed = false;
