@@ -1767,6 +1767,32 @@
       { key: 'tb', name: '淘宝', cls: 'src-tb', check: /item\.taobao\.com|detail\.tmall\.com|m\.tb\.cn|detail\.liangxinyao/, url: k => 'https://s.taobao.com/search?q=' + encodeURIComponent(k) }
     ];
     let wsToken = 0;
+    let WS_FC_URL = '';
+    try {
+      const fcParam = new URLSearchParams(location.search).get('fc');
+      if (fcParam) localStorage.setItem('bpsFcProxy', fcParam.trim().replace(/\/+$/, ''));
+      WS_FC_URL = (localStorage.getItem('bpsFcProxy') || '').replace(/\/+$/, '');
+    } catch (e) {}
+
+    async function wsFetchFC(kw, srcKey) {
+      if (!WS_FC_URL) throw new Error('fc not configured');
+      const r = await fetch(WS_FC_URL + '/api/search?src=' + srcKey + '&kw=' + encodeURIComponent(kw));
+      if (!r.ok) throw new Error('FC HTTP ' + r.status);
+      const j = await r.json();
+      if (!(j && j.ok && Array.isArray(j.items))) throw new Error('FC bad response');
+      return j.items
+        .filter(it => it && it.title && it.url && isFinite(Number(it.price)) && Number(it.price) > 0)
+        .map(it => ({ title: String(it.title), price: Number(it.price), img: it.img || '', url: it.url, source: WS_SOURCES.find(s => s.key === srcKey) }))
+        .filter(it => it.source);
+    }
+
+    async function wsSearchSource(kw, src) {
+      try { return await wsFetchFC(kw, src.key); }
+      catch (e) {
+        const md = await wsFetchText(src.url(kw));
+        return wsParseProducts(md, src);
+      }
+    }
 
     async function wsFetchText(url) {
       const attempts = [
@@ -1842,7 +1868,7 @@
       $('#webSearchGo').disabled = true;
       $('#webSearchStatus').textContent = '正在从京东 / 淘宝抓取“' + kw + '”的相关商品，请稍候…';
       $('#webSearchResults').innerHTML = '<div class="empty-chart">搜索中，请稍候…</div>';
-      const settled = await Promise.allSettled(WS_SOURCES.map(async src => ({ src, items: wsParseProducts(await wsFetchText(src.url(kw)), src) })));
+      const settled = await Promise.allSettled(WS_SOURCES.map(async src => ({ src, items: await wsSearchSource(kw, src) })));
       if (token !== wsToken) return;
       $('#webSearchGo').disabled = false;
       const notes = [];
