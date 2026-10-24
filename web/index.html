@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>建材市场价格情报站</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='7' height='9' rx='1.5' fill='%23d64545'/%3E%3Cline x1='7.5' y1='5' x2='7.5' y2='27' stroke='%23d64545' stroke-width='2.4'/%3E%3Crect x='21' y='13' width='7' height='9' rx='1.5' fill='%231f9d61'/%3E%3Cline x1='24.5' y1='6' x2='24.5' y2='27' stroke='%231f9d61' stroke-width='2.4'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=20261015a">
+  <link rel="stylesheet" href="styles.css?v=20261024a">
 </head>
 <body>
   <header class="app-header">
@@ -47,6 +47,7 @@
           <div id="categorySeg" class="segmented"></div>
           <div class="panel-title">材料</div>
           <input id="materialSearch" class="search-input" type="search" placeholder="搜索材料..." autocomplete="off">
+          <button id="webSearchBtn" class="ws-open-btn" type="button">🔍 全网比价</button>
           <div id="materialList" class="material-list"></div>
           <div class="panel-title ma-title">均线</div>
           <div id="maToggles" class="ma-toggles">
@@ -75,7 +76,7 @@
               <select id="rangeSelect" class="range-select">
                 <option value="1">近1月</option>
                 <option value="3">近3月</option>
-                <option value="6" selected>近6月</option>
+                <option value="6">近6月</option>
                 <option value="12">近1年</option>
                 <option value="36" selected>近3年</option>
                 <option value="0">全部</option>
@@ -102,6 +103,16 @@
             <div id="priceCards" class="price-cards"></div>
           </div>
         </div>
+      </div>
+
+      <div class="panel web-search-panel hidden" id="webSearchPanel">
+        <div class="panel-title">全网比价 <span class="ws-sub">京东 / 淘宝 · 最相关 20 条</span></div>
+        <div class="ws-bar">
+          <input id="webSearchKw" class="search-input" type="search" placeholder="输入材料或商品关键词，如：不锈钢板 304、PPR水管、硅钢..." autocomplete="off">
+          <button id="webSearchGo" class="btn ws-go-btn" type="button">搜索</button>
+        </div>
+        <div id="webSearchStatus" class="ws-status"></div>
+        <div id="webSearchResults" class="ws-grid"></div>
       </div>
     </section>
 
@@ -230,7 +241,7 @@
   </main>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script src="data.js?v=20261021b"></script>
-  <script src="app.js?v=20261021b"></script>
+  <script src="data.js?v=20261024a"></script>
+  <script src="app.js?v=20261024a"></script>
 </body>
 </html>
