@@ -1,7 +1,7 @@
-// 阿里云函数计算 FC · Node.js 18 · Web 函数（监听 9000 端口）
+// 阿里云函数计算 FC · Node.js 18/22 · Web 函数（监听 9000 端口）
 // 用途：为“建材价格情报站”全网比价提供稳定的服务端抓取代理
 // 部署后访问：https://<你的公网地址>/api/search?src=jd|tb&kw=关键词
-// 返回 JSON：{ ok: true, src, items: [{ title, price, img, url }] }，已带 CORS 头，网页可直接调用
+// 返回 JSON：{ ok: true, src, items: [{ title, price, img, url }] }，已带 CORS 头
 
 const http = require('http');
 const https = require('https');
@@ -49,56 +49,80 @@ function decode(s) {
     .replace(/\s+/g, ' ').trim();
 }
 
-// 京东搜索页为服务端渲染：解析 gl-item 商品块，价格走京东公开价格接口
-// 环境变量 JD_COOKIE：填入已登录京东的浏览器 Cookie，可大幅降低反爬拦截概率
+// 京东搜索（2026 新版页面：plugin_goodsCardWrapper 商品块 + data-sku；兼容旧版 gl-item）
+// 环境变量 JD_COOKIE：已登录京东的浏览器 Cookie（新版搜索页需要登录态）
 async function searchJD(kw) {
   debug.hasCookie = !!process.env.JD_COOKIE;
   debug.cookieLen = (process.env.JD_COOKIE || '').length;
-  let html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8', {
-    'Referer': 'https://www.jd.com/'
-  });
-  if (!/gl-item/.test(html) && process.env.JD_COOKIE) {
-    html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8', {
-      'Referer': 'https://www.jd.com/',
-      'Cookie': process.env.JD_COOKIE
-    });
-  }
+  const url = 'https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8';
+  const headers = { 'Referer': 'https://www.jd.com/' };
+  if (process.env.JD_COOKIE) headers['Cookie'] = process.env.JD_COOKIE;
+  const html = await fetchText(url, headers);
   debug.htmlLen = html.length;
-  debug.blocked = !/gl-item/.test(html);
+
   const items = [];
   const seen = new Set();
-  const re = /<li[^>]*class="[^"]*gl-item[^"]*"[^>]*data-sku="(\d+)"([\s\S]*?)<\/li>/g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const sku = m[1];
-    const block = m[2];
-    if (seen.has(sku)) continue;
-    const tM = block.match(/<em[^>]*>([\s\S]*?)<\/em>/);
-    const imgM = block.match(/(?:data-lazy-img|src)="((?:https?:)?\/\/img\d+\.360buyimg\.com[^"]+)"/);
-    const title = tM ? decode(tM[1]) : '';
-    if (!title || title.length < 4) continue;
+  const add = (sku, title, img, htmlPrice) => {
+    if (!sku || seen.has(sku)) return;
+    if (!title || title.length < 4) return;
     seen.add(sku);
     items.push({
       sku,
       title,
-      img: imgM ? (imgM[1].startsWith('//') ? 'https:' + imgM[1] : imgM[1]) : '',
-      url: 'https://item.jd.com/' + sku + '.html'
+      img: img ? (img.startsWith('//') ? 'https:' + img : img) : '',
+      url: 'https://item.jd.com/' + sku + '.html',
+      htmlPrice: htmlPrice || null
     });
+  };
+
+  // 新版商品块
+  const blocks = html.split('plugin_goodsCardWrapper').slice(1);
+  debug.newCards = blocks.length;
+  for (const raw of blocks) {
+    const seg = raw.slice(0, 9000);
+    const skuM = seg.match(/data-sku="(\d+)"/);
+    if (!skuM) continue;
+    const titleM = seg.match(/title="([^"]{6,150})"/);
+    const imgM = seg.match(/data-src="((?:https?:)?\/\/img\d+\.360buyimg\.com[^"]+)"/);
+    let hp = null;
+    const pm = seg.match(/¥<\/i>([\s\S]{0,300}?)<\/span><\/span>/);
+    if (pm) {
+      const num = decode(pm[1]).replace(/[^\d.]/g, '');
+      if (num) hp = Number(num);
+    }
+    add(skuM[1], titleM ? decode(titleM[1]) : '', imgM ? imgM[1] : '', hp);
     if (items.length >= 30) break;
   }
+
+  // 旧版商品块（兜底）
+  if (!items.length) {
+    const re = /<li[^>]*class="[^"]*gl-item[^"]*"[^>]*data-sku="(\d+)"([\s\S]*?)<\/li>/g;
+    let m;
+    while ((m = re.exec(html)) !== null && items.length < 30) {
+      const block = m[2];
+      const tM = block.match(/<em[^>]*>([\s\S]*?)<\/em>/);
+      const imgM = block.match(/(?:data-lazy-img|src)="((?:https?:)?\/\/img\d+\.360buyimg\.com[^"]+)"/);
+      add(m[1], tM ? decode(tM[1]) : '', imgM ? imgM[1] : '', null);
+    }
+  }
+  debug.parsed = items.length;
+
+  // 价格：以京东公开价格接口为准，页面价格兜底
   if (items.length) {
     try {
       const ids = items.map(i => 'J_' + i.sku).join(',');
       const prices = await fetchJson('https://p.3.cn/prices/mgets?skuIds=' + ids);
       const map = {};
       (Array.isArray(prices) ? prices : []).forEach(p => { if (p && p.id) map[String(p.id).replace(/^J_/, '')] = p.p; });
-      items.forEach(i => { i.price = map[i.sku] || null; });
-    } catch (e) { /* 价格接口失败不阻断，前端会过滤无价商品 */ }
+      items.forEach(i => { i.price = map[i.sku] || i.htmlPrice || null; });
+    } catch (e) {
+      items.forEach(i => { i.price = i.htmlPrice || null; });
+    }
   }
   return items.filter(i => i.price && i.price > 0).slice(0, 20);
 }
 
-// 淘宝需登录+签名，服务端直连为尽力而为；环境变量 TB_COOKIE 可提升成功率；失败返回空数组，前端自动降级为直达链接
+// 淘宝：尽力而为，环境变量 TB_COOKIE 可提升成功率；失败返回空数组，前端自动降级
 async function searchTaobao(kw) {
   try {
     const headers = { 'Referer': 'https://www.taobao.com/' };
@@ -134,7 +158,7 @@ async function handle(req, res) {
     res.end(JSON.stringify(obj));
   };
   if (req.method === 'OPTIONS') { reply(204, {}); return; }
-  if (u.pathname !== '/api/search') { reply(404, { ok: false, error: 'not found, use /api/search?src=jd|tb&kw=关键词' }); return; }
+  if (u.pathname !== '/api/search') { reply(404, { ok: false, error: 'not found' }); return; }
   const kw = String(u.searchParams.get('kw') || '').trim().slice(0, 60);
   const src = (u.searchParams.get('src') || 'jd').toLowerCase() === 'tb' ? 'tb' : 'jd';
   if (!kw) { reply(400, { ok: false, error: 'missing kw' }); return; }
