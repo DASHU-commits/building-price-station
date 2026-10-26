@@ -1022,6 +1022,12 @@
     renderPriceChart();
   }
 
+  function applyFilterView() {
+    renderMarketChartOnly();
+    renderPriceTable();
+    renderMaterialList();
+  }
+
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 
   function latestYear() {
@@ -1866,7 +1872,7 @@
       state.rangeMonths = Number(e.target.value);
       state.customRange = null;
       updateJumpSelects();
-      renderMarketChartOnly();
+      applyFilterView();
     });
     $('#yearJump').addEventListener('change', e => {
       if (!e.target.value) return;
@@ -1875,7 +1881,7 @@
       const y = Number(e.target.value);
       state.customRange = { start: y + '-01-01', end: y + '-12-31', label: y + '年' };
       updateJumpSelects();
-      renderMarketChartOnly();
+      applyFilterView();
     });
     $('#monthJump').addEventListener('change', e => {
       if (!e.target.value) return;
@@ -1884,7 +1890,7 @@
       const m = Number(e.target.value);
       state.customRange = { start: y + '-' + pad2(m) + '-01', end: y + '-' + pad2(m) + '-' + pad2(daysInMonth(y, m)), label: y + '年' + m + '月' };
       updateJumpSelects();
-      renderMarketChartOnly();
+      applyFilterView();
     });
     $('#dayJump').addEventListener('change', e => {
       if (!e.target.value) return;
@@ -1898,7 +1904,7 @@
         label: y + '年' + m + '月' + d + '日'
       };
       updateJumpSelects();
-      renderMarketChartOnly();
+      applyFilterView();
     });
     $('#maToggles').addEventListener('change', e => {
       const key = e.target.dataset.ma;
