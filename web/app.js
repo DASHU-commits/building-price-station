@@ -975,12 +975,19 @@
     renderPriceChart();
   }
 
+  function updateRangePresets() {
+    $$('#rangePresets .seg-btn').forEach(b => {
+      b.classList.toggle('active', Number(b.dataset.months) === state.rangeMonths);
+    });
+  }
+
   function renderMarket() {
     ensureSelectedMaterials();
     renderCitySeg();
     renderCategorySeg();
     renderPriceModeSeg();
     renderPeriodSeg();
+    updateRangePresets();
     renderMaterialList();
     renderSpecChips();
     renderMarketChartOnly();
@@ -1764,6 +1771,14 @@
 
     $('#rangeSelect').addEventListener('change', e => {
       state.rangeMonths = Number(e.target.value);
+      renderMarketChartOnly();
+    });
+    $('#rangePresets').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn[data-months]');
+      if (!btn) return;
+      state.rangeMonths = Number(btn.dataset.months);
+      $('#rangeSelect').value = btn.dataset.months;
+      updateRangePresets();
       renderMarketChartOnly();
     });
     $('#maToggles').addEventListener('change', e => {

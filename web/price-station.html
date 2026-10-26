@@ -1428,6 +1428,14 @@ button {
                 <option value="0">全部</option>
               </select>
             </div>
+            <div class="quick-group">
+              <span class="quick-label">快捷</span>
+              <div id="rangePresets" class="segmented">
+                <button class="seg-btn" type="button" data-months="1" title="近1个月逐日明细">日</button>
+                <button class="seg-btn" type="button" data-months="12" title="近1年">月</button>
+                <button class="seg-btn" type="button" data-months="36" title="近3年">年</button>
+              </div>
+            </div>
           </div>
           <div id="quoteStrip" class="quote-strip"></div>
           <div class="panel chart-panel">
@@ -2901,12 +2909,19 @@ const MATERIALS = [
     renderPriceChart();
   }
 
+  function updateRangePresets() {
+    $$('#rangePresets .seg-btn').forEach(b => {
+      b.classList.toggle('active', Number(b.dataset.months) === state.rangeMonths);
+    });
+  }
+
   function renderMarket() {
     ensureSelectedMaterials();
     renderCitySeg();
     renderCategorySeg();
     renderPriceModeSeg();
     renderPeriodSeg();
+    updateRangePresets();
     renderMaterialList();
     renderSpecChips();
     renderMarketChartOnly();
@@ -3690,6 +3705,14 @@ const MATERIALS = [
 
     $('#rangeSelect').addEventListener('change', e => {
       state.rangeMonths = Number(e.target.value);
+      renderMarketChartOnly();
+    });
+    $('#rangePresets').addEventListener('click', e => {
+      const btn = e.target.closest('.seg-btn[data-months]');
+      if (!btn) return;
+      state.rangeMonths = Number(btn.dataset.months);
+      $('#rangeSelect').value = btn.dataset.months;
+      updateRangePresets();
       renderMarketChartOnly();
     });
     $('#maToggles').addEventListener('change', e => {
