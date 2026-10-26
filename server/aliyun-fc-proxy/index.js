@@ -48,8 +48,17 @@ function decode(s) {
 }
 
 // 京东搜索页为服务端渲染：解析 gl-item 商品块，价格走京东公开价格接口
+// 环境变量 JD_COOKIE：填入已登录京东的浏览器 Cookie，可大幅降低反爬拦截概率
 async function searchJD(kw) {
-  const html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8');
+  let html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8', {
+    'Referer': 'https://www.jd.com/'
+  });
+  if (!/gl-item/.test(html) && process.env.JD_COOKIE) {
+    html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8', {
+      'Referer': 'https://www.jd.com/',
+      'Cookie': process.env.JD_COOKIE
+    });
+  }
   const items = [];
   const seen = new Set();
   const re = /<li[^>]*class="[^"]*gl-item[^"]*"[^>]*data-sku="(\d+)"([\s\S]*?)<\/li>/g;
@@ -83,12 +92,12 @@ async function searchJD(kw) {
   return items.filter(i => i.price && i.price > 0).slice(0, 20);
 }
 
-// 淘宝需登录+签名，服务端直连为尽力而为；失败返回空数组，前端自动降级为直达链接
+// 淘宝需登录+签名，服务端直连为尽力而为；环境变量 TB_COOKIE 可提升成功率；失败返回空数组，前端自动降级为直达链接
 async function searchTaobao(kw) {
   try {
-    const html = await fetchText('https://s.taobao.com/search?q=' + encodeURIComponent(kw), {
-      'Referer': 'https://www.taobao.com/'
-    });
+    const headers = { 'Referer': 'https://www.taobao.com/' };
+    if (process.env.TB_COOKIE) headers['Cookie'] = process.env.TB_COOKIE;
+    const html = await fetchText('https://s.taobao.com/search?q=' + encodeURIComponent(kw), headers);
     const items = [];
     const re = /"title":"([^"]{6,140})"[\s\S]{0,400}?"price"\s*:\s*"?([\d.]+)"?[\s\S]{0,400}?"pic_url":"([^"]+)"/g;
     let m;
