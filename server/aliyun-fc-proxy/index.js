@@ -1,8 +1,9 @@
-// 阿里云函数计算 FC · Node.js 18 内置运行时（HTTP 触发函数）
+// 阿里云函数计算 FC · Node.js 18 · Web 函数（监听 9000 端口）
 // 用途：为“建材价格情报站”全网比价提供稳定的服务端抓取代理
 // 部署后访问：https://<你的公网地址>/api/search?src=jd|tb&kw=关键词
 // 返回 JSON：{ ok: true, src, items: [{ title, price, img, url }] }，已带 CORS 头，网页可直接调用
 
+const http = require('http');
 const https = require('https');
 
 function fetchText(url, headers = {}, timeoutMs = 12000, depth = 0) {
@@ -92,7 +93,7 @@ async function searchTaobao(kw) {
     const re = /"title":"([^"]{6,140})"[\s\S]{0,400}?"price"\s*:\s*"?([\d.]+)"?[\s\S]{0,400}?"pic_url":"([^"]+)"/g;
     let m;
     while ((m = re.exec(html)) !== null && items.length < 20) {
-      let img = m[3].replace(/\\u003d/g, '=').replace(/\//g, '/');
+      let img = m[3].replace(/\\u003d/g, '=');
       if (img.startsWith('//')) img = 'https:' + img;
       const price = Number(m[2]);
       if (!isFinite(price) || price <= 0) continue;
@@ -104,23 +105,30 @@ async function searchTaobao(kw) {
   }
 }
 
-exports.handler = (request, response, context) => {
-  const q = request.queries || {};
-  const kw = String(q.kw || '').trim().slice(0, 60);
-  const src = (q.src || 'jd').toLowerCase() === 'tb' ? 'tb' : 'jd';
+async function handle(req, res) {
+  const u = new URL(req.url, 'http://localhost');
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json; charset=utf-8'
   };
   const reply = (code, obj) => {
-    Object.keys(cors).forEach(k => response.setHeader(k, cors[k]));
-    response.setStatusCode(code);
-    response.send(JSON.stringify(obj));
+    Object.keys(cors).forEach(k => res.setHeader(k, cors[k]));
+    res.writeHead(code);
+    res.end(JSON.stringify(obj));
   };
-  if (request.method === 'OPTIONS') { reply(204, {}); return; }
+  if (req.method === 'OPTIONS') { reply(204, {}); return; }
+  if (u.pathname !== '/api/search') { reply(404, { ok: false, error: 'not found, use /api/search?src=jd|tb&kw=关键词' }); return; }
+  const kw = String(u.searchParams.get('kw') || '').trim().slice(0, 60);
+  const src = (u.searchParams.get('src') || 'jd').toLowerCase() === 'tb' ? 'tb' : 'jd';
   if (!kw) { reply(400, { ok: false, error: 'missing kw' }); return; }
-  (src === 'tb' ? searchTaobao(kw) : searchJD(kw))
-    .then(items => reply(200, { ok: true, src, items }))
-    .catch(e => reply(200, { ok: false, error: String((e && e.message) || e) }));
-};
+  try {
+    const items = await (src === 'tb' ? searchTaobao(kw) : searchJD(kw));
+    reply(200, { ok: true, src, items });
+  } catch (e) {
+    reply(200, { ok: false, error: String((e && e.message) || e) });
+  }
+}
+
+http.createServer(handle).listen(9000, () => console.log('bps-price-proxy listening on 9000'));
