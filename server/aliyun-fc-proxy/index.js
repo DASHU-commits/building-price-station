@@ -6,6 +6,8 @@
 const http = require('http');
 const https = require('https');
 
+const debug = {};
+
 function fetchText(url, headers = {}, timeoutMs = 12000, depth = 0) {
   return new Promise((resolve, reject) => {
     if (depth > 3) return reject(new Error('too many redirects'));
@@ -50,6 +52,8 @@ function decode(s) {
 // 京东搜索页为服务端渲染：解析 gl-item 商品块，价格走京东公开价格接口
 // 环境变量 JD_COOKIE：填入已登录京东的浏览器 Cookie，可大幅降低反爬拦截概率
 async function searchJD(kw) {
+  debug.hasCookie = !!process.env.JD_COOKIE;
+  debug.cookieLen = (process.env.JD_COOKIE || '').length;
   let html = await fetchText('https://search.jd.com/Search?keyword=' + encodeURIComponent(kw) + '&enc=utf8', {
     'Referer': 'https://www.jd.com/'
   });
@@ -59,6 +63,8 @@ async function searchJD(kw) {
       'Cookie': process.env.JD_COOKIE
     });
   }
+  debug.htmlLen = html.length;
+  debug.blocked = !/gl-item/.test(html);
   const items = [];
   const seen = new Set();
   const re = /<li[^>]*class="[^"]*gl-item[^"]*"[^>]*data-sku="(\d+)"([\s\S]*?)<\/li>/g;
@@ -134,7 +140,9 @@ async function handle(req, res) {
   if (!kw) { reply(400, { ok: false, error: 'missing kw' }); return; }
   try {
     const items = await (src === 'tb' ? searchTaobao(kw) : searchJD(kw));
-    reply(200, { ok: true, src, items });
+    const out = { ok: true, src, items };
+    if (src === 'jd' && (!items || !items.length)) out.debug = debug;
+    reply(200, out);
   } catch (e) {
     reply(200, { ok: false, error: String((e && e.message) || e) });
   }
