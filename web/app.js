@@ -944,6 +944,9 @@
     const dec = raw ? raw.dec : 0;
     if (!stats) {
       box.innerHTML = '<div class="q-card"><div class="q-label">暂无数据</div></div>';
+      const mat0 = getMaterial(state.materialId);
+      $('#chartTitle').textContent = mat0 ? mat0.name + ' ' + (mat0.spec || '') : state.materialId;
+      $('#chartSub').textContent = state.city + ' · ' + PERIOD_NAMES[state.period] + ' · ' + rangeLabelText();
       return;
     }
     const dayCls = stats.dayChg >= 0 ? 'up' : 'down';
