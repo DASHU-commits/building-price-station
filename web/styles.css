@@ -1343,3 +1343,8 @@ button {
     font-size: 12px;
   }
 }
+
+.jump-selects{ display:flex; gap:6px; align-items:center; }
+.jump-selects .range-select{ min-width:64px; }
+.focus-line{ stroke:#2f6bff; stroke-width:1.2; stroke-dasharray:4 3; opacity:0.85; }
+.focus-dot{ fill:#2f6bff; stroke:#ffffff; stroke-width:1.5; }

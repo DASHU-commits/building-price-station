@@ -75,6 +75,7 @@
     materialSearch: ''
     ,categoryFilter: 'all'
     ,materialFamily: ''
+    ,customRange: null
   };
 
   const $ = sel => document.querySelector(sel);
@@ -559,6 +560,14 @@
       if (d) svg += '<path d="' + d + '" fill="none" stroke="' + MA_COLORS[m.key] + '" stroke-width="1.4" opacity="0.9"/>';
     }
 
+    if (opts.focusDate) {
+      const fi = candles.findIndex(c => c.date === opts.focusDate);
+      if (fi >= 0) {
+        svg += '<line class="focus-line" x1="' + x(fi).toFixed(2) + '" y1="' + pad.top + '" x2="' + x(fi).toFixed(2) + '" y2="' + (pad.top + plotH) + '"/>';
+        svg += '<circle class="focus-dot" cx="' + x(fi).toFixed(2) + '" cy="' + y(candles[fi].close).toFixed(2) + '" r="4"/>';
+      }
+    }
+
     const lastC = candles[n - 1];
     svg += '<circle cx="' + x(n - 1).toFixed(2) + '" cy="' + y(lastC.close).toFixed(2) + '" r="' + (compact ? 2.5 : 3.5) + '" fill="' + lineColor + '"/>';
     if (!compact) {
@@ -889,7 +898,13 @@
   function visibleCandles() {
     const raw = getSeries(state.city, state.materialId);
     if (!raw) return [];
-    const candles = filterByMonths(aggregateSeries(raw.series, state.period), state.rangeMonths);
+    let candles = aggregateSeries(raw.series, state.period);
+    if (state.customRange) {
+      const r = state.customRange;
+      candles = candles.filter(c => c.date >= r.start && c.date <= r.end);
+    } else {
+      candles = filterByMonths(candles, state.rangeMonths);
+    }
     return modeCandles(candles, raw.taxRate || 0, raw.dec, state.priceMode);
   }
 
@@ -946,7 +961,7 @@
     ).join('');
     $('#chartTitle').textContent = mat ? mat.name + ' ' + (mat.spec || '') : state.materialId;
     const modeLabel = state.priceMode === 'tax' ? '含税价' : '不含税价';
-    $('#chartSub').textContent = state.city + ' · ' + PERIOD_NAMES[state.period] + ' · ' + RANGE_NAMES[state.rangeMonths] + ' · ' + modeLabel + ' · 税率 ' + (((raw && raw.taxRate) || 0) * 100).toFixed(0) + '%' + ' · 来源 ' + ((raw && raw.source) || '示例数据') + ' · 渠道 ' + ((mat && mat.channel) || '广材网');
+    $('#chartSub').textContent = state.city + ' · ' + PERIOD_NAMES[state.period] + ' · ' + rangeLabelText() + ' · ' + modeLabel + ' · 税率 ' + (((raw && raw.taxRate) || 0) * 100).toFixed(0) + '%' + ' · 来源 ' + ((raw && raw.source) || '示例数据') + ' · 渠道 ' + ((mat && mat.channel) || '广材网');
     const activeMas = Object.keys(MA_NAMES).filter(k => state.mas[k]);
     $('#maLegend').innerHTML = activeMas.map(k =>
       '<span class="legend-item"><span class="legend-dot" style="background:' + MA_COLORS[k] + '"></span>' + MA_NAMES[k] + '</span>'
@@ -967,7 +982,7 @@
     }
     const activeMas = Object.keys(MA_NAMES).filter(k => state.mas[k]);
     const height = window.innerWidth <= 720 ? 300 : 400;
-    renderLineChart(container, candles, { maKeys: activeMas, decimals: raw.dec, height });
+    renderLineChart(container, candles, { maKeys: activeMas, decimals: raw.dec, height, focusDate: state.customRange && state.customRange.focus });
   }
 
   function renderMarketChartOnly() {
@@ -975,10 +990,56 @@
     renderPriceChart();
   }
 
-  function updateRangePresets() {
-    $$('#rangePresets .seg-btn').forEach(b => {
-      b.classList.toggle('active', Number(b.dataset.months) === state.rangeMonths);
-    });
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+  function latestYear() {
+    return Number(String(state.data.latestDate || '').slice(0, 4)) || new Date().getFullYear();
+  }
+
+  function latestMonth() {
+    return Number(String(state.data.latestDate || '').slice(5, 7)) || 1;
+  }
+
+  function dataYears() {
+    const top = latestYear();
+    return [top, top - 1, top - 2];
+  }
+
+  function jumpYear() {
+    const v = $('#yearJump').value;
+    return v ? Number(v) : latestYear();
+  }
+
+  function jumpMonth() {
+    const v = $('#monthJump').value;
+    return v ? Number(v) : latestMonth();
+  }
+
+  function updateJumpSelects() {
+    const ySel = $('#yearJump'), mSel = $('#monthJump'), dSel = $('#dayJump');
+    ySel.innerHTML = '<option value="">年</option>' + dataYears().map(y =>
+      '<option value="' + y + '">' + y + '年</option>').join('');
+    mSel.innerHTML = '<option value="">月</option>' + Array.from({ length: 12 }, (_, i) =>
+      '<option value="' + (i + 1) + '">' + (i + 1) + '月</option>').join('');
+    const r = state.customRange;
+    const y = r ? Number(r.start.slice(0, 4)) : jumpYear();
+    const m = r ? Number(r.start.slice(5, 7)) : jumpMonth();
+    const nd = daysInMonth(y, m);
+    dSel.innerHTML = '<option value="">日</option>' + Array.from({ length: nd }, (_, i) =>
+      '<option value="' + (i + 1) + '">' + (i + 1) + '日</option>').join('');
+    if (r) {
+      ySel.value = String(y);
+      if (r.focus || r.start.slice(0, 7) === r.end.slice(0, 7)) {
+        mSel.value = String(m);
+        if (r.focus) dSel.value = String(Number(r.focus.slice(8, 10)));
+      }
+    }
+  }
+
+  function rangeLabelText() {
+    const r = state.customRange;
+    if (r) return r.label || (r.start === r.end ? r.start : r.start + ' 至 ' + r.end);
+    return RANGE_NAMES[state.rangeMonths];
   }
 
   function renderMarket() {
@@ -987,7 +1048,7 @@
     renderCategorySeg();
     renderPriceModeSeg();
     renderPeriodSeg();
-    updateRangePresets();
+    updateJumpSelects();
     renderMaterialList();
     renderSpecChips();
     renderMarketChartOnly();
@@ -1771,14 +1832,40 @@
 
     $('#rangeSelect').addEventListener('change', e => {
       state.rangeMonths = Number(e.target.value);
+      state.customRange = null;
+      updateJumpSelects();
       renderMarketChartOnly();
     });
-    $('#rangePresets').addEventListener('click', e => {
-      const btn = e.target.closest('.seg-btn[data-months]');
-      if (!btn) return;
-      state.rangeMonths = Number(btn.dataset.months);
-      $('#rangeSelect').value = btn.dataset.months;
-      updateRangePresets();
+    $('#yearJump').addEventListener('change', e => {
+      if (!e.target.value) return;
+      $('#monthJump').value = '';
+      $('#dayJump').value = '';
+      const y = Number(e.target.value);
+      state.customRange = { start: y + '-01-01', end: y + '-12-31', label: y + '年' };
+      updateJumpSelects();
+      renderMarketChartOnly();
+    });
+    $('#monthJump').addEventListener('change', e => {
+      if (!e.target.value) return;
+      $('#dayJump').value = '';
+      const y = jumpYear();
+      const m = Number(e.target.value);
+      state.customRange = { start: y + '-' + pad2(m) + '-01', end: y + '-' + pad2(m) + '-' + pad2(daysInMonth(y, m)), label: y + '年' + m + '月' };
+      updateJumpSelects();
+      renderMarketChartOnly();
+    });
+    $('#dayJump').addEventListener('change', e => {
+      if (!e.target.value) return;
+      const y = jumpYear();
+      const m = jumpMonth();
+      const d = Number(e.target.value);
+      state.customRange = {
+        start: y + '-' + pad2(m) + '-01',
+        end: y + '-' + pad2(m) + '-' + pad2(daysInMonth(y, m)),
+        focus: y + '-' + pad2(m) + '-' + pad2(d),
+        label: y + '年' + m + '月' + d + '日'
+      };
+      updateJumpSelects();
       renderMarketChartOnly();
     });
     $('#maToggles').addEventListener('change', e => {
