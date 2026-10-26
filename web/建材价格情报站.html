@@ -2205,26 +2205,38 @@ const MATERIALS = [
     return out;
   }
 
-  function changePct(series, days) {
+  function changePct(series, days, anchor) {
     if (!series || series.length < 2) return null;
-    const latest = series[series.length - 1].close;
-    const cutoff = new Date(state.data.latestDate + 'T00:00:00');
+    const anchorStr = anchor || state.data.latestDate;
+    let li = -1;
+    for (let i = series.length - 1; i >= 0; i--) {
+      if (series[i].date <= anchorStr) { li = i; break; }
+    }
+    if (li < 1) return null;
+    const latest = series[li].close;
+    const cutoff = new Date(anchorStr + 'T00:00:00');
     cutoff.setDate(cutoff.getDate() - days);
     const cutStr = cutoff.getFullYear() + '-' + pad2(cutoff.getMonth() + 1) + '-' + pad2(cutoff.getDate());
     let prev = null;
-    for (let i = series.length - 2; i >= 0; i--) {
+    for (let i = li - 1; i >= 0; i--) {
       if (series[i].date <= cutStr) { prev = series[i].close; break; }
     }
     if (prev == null) prev = series[0].close;
     return (latest - prev) / prev * 100;
   }
 
-  function latestInfo(city, id) {
+  function latestInfo(city, id, asOf) {
     const s = getSeries(city, id);
     if (!s || !s.series.length) return null;
     const series = s.series;
-    const last = series[series.length - 1];
-    const prev = series.length > 1 ? series[series.length - 2].close : null;
+    const asOfStr = asOf || state.data.latestDate;
+    let li = -1;
+    for (let i = series.length - 1; i >= 0; i--) {
+      if (series[i].date <= asOfStr) { li = i; break; }
+    }
+    if (li < 0) return null;
+    const last = series[li];
+    const prev = li > 0 ? series[li - 1].close : null;
     const rate = s.taxRate || 0;
     return {
       name: s.name,
@@ -2236,9 +2248,9 @@ const MATERIALS = [
       latest: modeValue(last.close, rate, s.dec, state.priceMode),
       latestTax: last.close,
       dayChg: prev != null ? (last.close - prev) / prev * 100 : null,
-      weekChg: changePct(series, 7),
-      monthChg: changePct(series, 30),
-      yearChg: changePct(series, 365),
+      weekChg: changePct(series, 7, asOfStr),
+      monthChg: changePct(series, 30, asOfStr),
+      yearChg: changePct(series, 365, asOfStr),
       date: last.date
     };
   }
@@ -2789,7 +2801,7 @@ const MATERIALS = [
     for (const family of families) {
       const prices = [];
       for (const m of family.items) {
-        const info = latestInfo(state.city, m.id);
+        const info = latestInfo(state.city, m.id, currentAsOfDate());
         if (info) prices.push(info.latest);
       }
       const first = family.items[0];
@@ -2847,16 +2859,33 @@ const MATERIALS = [
     return modeCandles(candles, raw.taxRate || 0, raw.dec, state.priceMode);
   }
 
+  function currentAsOfDate(series) {
+    const r = state.customRange;
+    if (!r) return state.data.latestDate;
+    const target = r.focus || r.end;
+    const s = series || (getSeries(state.city, state.materialId) || {}).series;
+    if (s && s.length) {
+      for (let i = s.length - 1; i >= 0; i--) {
+        if (s[i].date <= target) return s[i].date;
+      }
+      return s[0].date;
+    }
+    return target;
+  }
+
   function computeMarketStats(candles) {
     const raw = getSeries(state.city, state.materialId);
     if (!raw || !candles.length) return null;
-    const last = candles[candles.length - 1];
-    const first = candles[0];
-    const prev = candles.length > 1 ? candles[candles.length - 2] : null;
+    const asOf = currentAsOfDate(raw.series);
+    const upto = candles.filter(c => c.date <= asOf);
+    if (!upto.length) return null;
+    const last = upto[upto.length - 1];
+    const first = upto[0];
+    const prev = upto.length > 1 ? upto[upto.length - 2] : null;
     let sum = 0;
     let high = -Infinity;
     let low = Infinity;
-    for (const c of candles) {
+    for (const c of upto) {
       sum += c.close;
       high = Math.max(high, c.high);
       low = Math.min(low, c.low);
@@ -2865,11 +2894,11 @@ const MATERIALS = [
       latest: last.close,
       prevClose: prev ? prev.close : null,
       dayChg: prev ? (last.close - prev.close) / prev.close * 100 : null,
-      weekChg: changePct(raw.series, 7),
-      monthChg: changePct(raw.series, 30),
+      weekChg: changePct(raw.series, 7, asOf),
+      monthChg: changePct(raw.series, 30, asOf),
       high,
       low,
-      avg: sum / candles.length,
+      avg: sum / upto.length,
       rangeChg: (last.close - first.close) / first.close * 100
     };
   }
@@ -2890,8 +2919,8 @@ const MATERIALS = [
     }
     const dayCls = stats.dayChg >= 0 ? 'up' : 'down';
     const items = [
-      { label: '最新价', value: fmtPrice(stats.latest, dec), cls: '' },
-      { label: '较昨日', value: fmtPct(stats.dayChg), cls: dayCls },
+      { label: state.customRange ? '筛选日价' : '最新价', value: fmtPrice(stats.latest, dec), cls: '' },
+      { label: state.customRange ? '较前日' : '较昨日', value: fmtPct(stats.dayChg), cls: dayCls },
       { label: '近一周', value: fmtPct(stats.weekChg), cls: stats.weekChg >= 0 ? 'up' : 'down' },
       { label: '近一月', value: fmtPct(stats.monthChg), cls: stats.monthChg >= 0 ? 'up' : 'down' },
       { label: '区间最高', value: fmtPrice(stats.high, dec), cls: '' },
@@ -3008,11 +3037,11 @@ const MATERIALS = [
     const rows = [];
     for (const m of state.data.materials) {
       if (m.name !== state.materialFamily) continue;
-      const info = latestInfo(state.city, m.id);
+      const info = latestInfo(state.city, m.id, currentAsOfDate());
       if (!info) continue;
       rows.push(Object.assign({}, info, { id: m.id, channel: m.channel, category: m.category }));
     }
-    const head = '<thead><tr><th>规格</th><th>单位</th><th class="num">税率</th><th>渠道</th><th class="num">最新价</th><th class="num">日涨跌</th><th class="num">周涨跌</th><th class="num">月涨跌</th></tr></thead>';
+    const head = '<thead><tr><th>规格</th><th>单位</th><th class="num">税率</th><th>渠道</th><th class="num">' + (state.customRange ? '筛选日价' : '最新价') + '</th><th class="num">日涨跌</th><th class="num">周涨跌</th><th class="num">月涨跌</th></tr></thead>';
     const body = rows.map(r =>
       '<tr data-id="' + esc(r.id) + '" class="' + (r.id === state.materialId ? 'active-row' : '') + '"><td class="mat-cell">' + esc(r.spec) + '</td><td>' + esc(r.unit) + '</td>' +
       '<td class="num">' + (((r.taxRate || 0) * 100).toFixed(0)) + '%</td>' +
