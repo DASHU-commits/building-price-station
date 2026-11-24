@@ -130,7 +130,7 @@ const MATERIALS = [
   { id: 'mat-112', name: '级配碎石', spec: '0-31.5mm', unit: '元/吨', dec: 0, tax: 0.03, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 90, '南京': 95, '上海': 106, '杭州': 101 } },
   { id: 'mat-113', name: '级配碎石', spec: '0-40mm', unit: '元/吨', dec: 0, tax: 0.03, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 86, '南京': 90, '上海': 101, '杭州': 96 } },
   { id: 'mat-114', name: '级配碎石', spec: '0-60mm', unit: '元/吨', dec: 0, tax: 0.03, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 82, '南京': 86, '上海': 97, '杭州': 92 } },
-  { id: 'mat-115', name: '商品混凝土', spec: 'C15', unit: '元/m³', dec: 0, tax: 0.03, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 400, '南京': 420, '上海': 472, '杭州': 448 } },
+  { id: 'mat-115', name: '商品混凝土', spec: 'C15', unit: '元/m³', dec: 0, tax: 0.13, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 400, '南京': 420, '上海': 472, '杭州': 448 } },
   { id: 'mat-134', name: '商品混凝土', spec: 'C20 泵送', unit: '元/m³', dec: 2, tax: 0.13, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 379.21, '南京': 398, '上海': 447, '杭州': 425 } },
   { id: 'mat-135', name: '商品混凝土', spec: 'C20 非泵送', unit: '元/m³', dec: 2, tax: 0.13, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 359.8, '南京': 378, '上海': 425, '杭州': 403 } },
   { id: 'mat-136', name: '商品混凝土', spec: 'C25 泵送', unit: '元/m³', dec: 2, tax: 0.13, vol: 0.005, trend: 0.0001, category: '地材', channel: '广材网', base: { '合肥': 394.88, '南京': 415, '上海': 466, '杭州': 442 } },
